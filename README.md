@@ -16,5 +16,4 @@ $ pip install q2-greengenes2
 ```
 
 To build the trees, you will need to download the following files from the FTP linked here: https://ftp.microbio.me/greengenes_release/current/
-- 2024.09.phylogeny.md5.nwk.qza
-- 2024.09.taxonomy.md5.nwk.qza
+- 2024.09.phylogeny.id.nwk.qza
