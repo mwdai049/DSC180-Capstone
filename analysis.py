@@ -104,19 +104,17 @@ for observations in range(10, 155, 5):
                 difference, effect_size)})
 data_beta = pd.DataFrame(data_beta) 
 
-print ('Alpha diversity:',
-    b1['deblur alpha diversity'].mean(),
-    bother['deblur alpha diversity'].mean(),
-    
-    b1['deblur alpha diversity'].std(),
-    bother['deblur alpha diversity'].std())
+print ('Alpha diversity:')
+print('B1 Mean Alpha Diversity: ', b1['deblur alpha diversity'].mean())
+print('B Other Mean Alpha Diversity: ', bother['deblur alpha diversity'].mean())
+print('B1 STD: ', b1['deblur alpha diversity'].std())
+print('B Other STD: ', bother['deblur alpha diversity'].std())
 
-print ('Beta diversity:',
-    mean(b1_dtx),
-    mean(bother_dtx),
-    
-    stdev(b1_dtx),
-    stdev(bother_dtx))
+print ('Beta diversity:')
+print('B1 Mean Beta Diversity: ', mean(b1_dtx))
+print('B Other Mean Beta Diversity: ', mean(bother_dtx))
+print('B1 STD: ', stdev(b1_dtx))
+print('B Other STD: ', stdev(bother_dtx))
 
 # Plotting the alpha diversity power analysis results
 fig, ax1 = plt.subplots(figsize=(15, 9))
@@ -174,4 +172,3 @@ ax2.xaxis.set_major_locator(plt.MultipleLocator(.1))
 ax2.legend()
 plt.show()
 fig.savefig('figs/figure2.pdf')
-
