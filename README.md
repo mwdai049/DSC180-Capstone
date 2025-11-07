@@ -61,7 +61,7 @@ figs/
         - figs/figure1.pdf – alpha-diversity power curves
         - figs/figure2.pdf – beta-diversity power curves and distance distributions
 
-## Runing the Code
+## Running the Code
 Activate the QIIME 2 Python environment, then from the project directory:
 
 ```
