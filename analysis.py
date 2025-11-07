@@ -18,7 +18,7 @@ import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
 # Load the feature table and insertion tree. Both are QIIME2 artifacts.
-ft = Artifact.load('qiita_artifacts/78873_feature-table.qza')
+ft = Artifact.load('qiita_artifacts/feature-table.qza')
 
 # Import the relabelled Newick tree as a rooted QIIME 2 phylogeny artifact and save it as insertion_tree.qza
 nwk = NewickFormat('qiita_artifacts/insertion_tree.relabelled.tre', mode='r')
