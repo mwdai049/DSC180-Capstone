@@ -17,15 +17,17 @@ Place the following under the `qiita_artifacts/` directory:
     - Newick tree to be imported as a rooted phylogeny.
 2. feature_table.qza
     - Feature table (`FeatureTable[Frequency]`) QIIME 2 artifact.
-3. mapping file
+3. metadata.txt
     - The metadata
 
-The first two can be found in the first triangle node of the processing tree labelled dflt_name (BIOM). The mapping file can be found at the top, next to the title of the analysis.
+In Qiita, the first two can be found in the first triangle node of the processing tree labelled dflt_name (BIOM). The mapping file can be found at the top, next to the title of the analysis.
 
 ### Directory Structure
 
 ```text
-analysis.py          
+src/
+    analysis.py
+    notebook.ipynb       
 qiita_artifacts/
     feature-table.qza
     insertion_tree.relabelled.tre
@@ -34,7 +36,7 @@ artifacts/
 figs/  
 ```
 
-`analysis.py` is the code script, `artifacts/` will contain created artifacts, and `figs/` will contain the visualizations of results of the analysis.
+`src/analysis.py` is the code script, `src/notebook.ipynb` contains the code in a notebook, `artifacts/` will contain created artifacts, and `figs/` will contain the visualizations of results of the analysis.
 
 ## What the Script Does
 1. Load the QIIME2 Artifacts
@@ -63,7 +65,7 @@ figs/
 Activate the QIIME 2 Python environment, then from the project directory:
 
 ```
-python analysis.py
+python src/analysis.py
 ```
 
 Running this code will run the analysis and generate the resulting figures for visualization. After it finishes, check the figs/ directory for the generated PDF figures and the console output for summary statistics.
