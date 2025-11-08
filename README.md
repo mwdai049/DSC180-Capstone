@@ -27,7 +27,7 @@ The first two can be found in the first triangle node of the processing tree lab
 ```text
 analysis.py          
 qiita_artifacts/
-    78873_feature-table.qza
+    feature-table.qza
     insertion_tree.relabelled.tre
     metadata.txt
 artifacts/
