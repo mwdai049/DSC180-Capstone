@@ -7,25 +7,28 @@ import re
 from statsmodels.stats.power import tt_ind_solve_power
 from statistics import mean, stdev
 from skbio import DistanceMatrix
-from qiime2.plugins import fragment_insertion, diversity
+from qiime2.plugins import fragment_insertion, diversity, emperor
 from qiime2 import Metadata, Artifact
 from qiime2.plugins.feature_table.methods import rarefy
 from qiime2.plugins.phylogeny.methods import midpoint_root
 from skbio import TreeNode
 from q2_types.tree import NewickFormat
 from skbio.diversity.alpha import faith_pd
+import plotly.express as px
+from qiime2 import Artifact, Metadata
+import skbio
 import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
 # Load the feature table and insertion tree. Both are QIIME2 artifacts.
-ft = Artifact.load('qiita_artifacts/feature-table.qza')
+ft = Artifact.load('qiita_artifacts/feature_table.qza')
 
 # Import the relabelled Newick tree as a rooted QIIME 2 phylogeny artifact and save it as insertion_tree.qza
 nwk = NewickFormat('qiita_artifacts/insertion_tree.relabelled.tre', mode='r')
 tree_qza = Artifact.import_data('Phylogeny[Rooted]', nwk)
 tree_qza.save('artifacts/insertion_tree.qza')
 
-insertion_tree = q2.Artifact.load('artifacts/insertion-tree.qza')
+insertion_tree = q2.Artifact.load('artifacts/insertion_tree.qza')
 
 # Rarefaction (a kind of random subsampling) on the feature table of counts. 
 # We sample down to 10,000 reads per sample to make them comparable, and storing that new standardized table as rarefied
@@ -139,7 +142,7 @@ grid = plt.GridSpec(ncols=3, nrows=1, hspace=0.2, wspace=0.2)
 ax1 = fig.add_subplot(grid[0, :2])
 ax2 = fig.add_subplot(grid[0, 2:])
 
-# LEFT: beta power curves (unchanged)
+# LEFT: beta power curves
 sns.lineplot(x='Total sample size (N)', y='Power (1-β)',
              style='Significance level (α)',
              markers=True, dashes=False,
@@ -147,7 +150,7 @@ sns.lineplot(x='Total sample size (N)', y='Power (1-β)',
 ax1.axhline(0.8, 0, data_beta['Total sample size (N)'].max())
 ax1.xaxis.set_major_locator(plt.MultipleLocator(20))
 
-# RIGHT: distributions using histplot (+ KDE) instead of distplot
+# RIGHT: distributions using histplot (+ KDE)
 sns.histplot(b1_dtx,
              label="B1 within distances",
              color="red",
@@ -172,3 +175,37 @@ ax2.xaxis.set_major_locator(plt.MultipleLocator(.1))
 ax2.legend()
 plt.show()
 fig.savefig('figs/figure2.pdf')
+
+# Perform PCoA on the unweighted UniFrac distance matrix and visualize with Emperor
+pcoa = diversity.methods.pcoa(distance_matrix=unifrac_dm)
+viz = emperor.visualizers.plot(pcoa=pcoa.pcoa, metadata=metadata)
+viz.visualization.save('unweighted-unifrac-pcoa.qza')
+
+pcoa_art = Artifact.load('unweighted-unifrac-pcoa.qza')
+
+ordination: skbio.OrdinationResults = pcoa_art.view(skbio.OrdinationResults)
+coords = ordination.samples.copy()
+coords.index.name = 'SampleID'
+
+meta_df = metadata.to_dataframe()
+df = coords.join(meta_df, how='inner')
+
+x_lab = f"PC1 ({ordination.proportion_explained['PC1'] * 100:.1f}% var)"
+y_lab = f"PC2 ({ordination.proportion_explained['PC2'] * 100:.1f}% var)"
+
+fig = px.scatter(
+    df,
+    x='PC1',
+    y='PC2',
+    color='cd_behavior',       
+    hover_name=df.index,         
+    hover_data=df.columns,       
+    title="Unweighted UniFrac PCoA"
+)
+
+fig.update_layout(
+    xaxis_title=x_lab,
+    yaxis_title=y_lab
+)
+
+fig.savefig('figs/figure3.html')
