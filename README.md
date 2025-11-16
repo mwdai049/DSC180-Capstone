@@ -4,10 +4,44 @@
 
 ## Setup
 ### QIIME 2
-To upload and process the data, you must install QIIME 2. Instructions can be found here: https://docs.qiime2.org/2024.10/install/#qiime-2-2024-10-distributions
+To upload and process the data, you must install QIIME 2. The yml files are in the project directory.
 
-### QIIME 2 Visualizations
-In order to view visualizations created in QIIME 2, you will need to upload the output .qza or .qzv file onto the QIIME 2 View website. A link to the website can be found here: https://view.qiime2.org/
+### Conda
+#### Linux/Windows WSL
+
+```
+conda env create \
+  --name qiime2-amplicon-2025.10 \
+  --file qiime2-environment-windows.yml
+```
+
+#### macOS (Apple Silicon)
+
+```
+CONDA_SUBDIR=osx-64 conda env create \
+  --name qiime2-amplicon-2025.10 \
+  --file qiime2-environment-macos.yml
+conda activate qiime2-amplicon-2025.10
+conda config --env --set subdir osx-64
+```
+
+#### macOS (Intel)
+
+```
+conda env create \
+  --name qiime2-amplicon-2025.10 \
+  --file qiime2-environment-macos.yml
+```
+
+To test the installation:
+
+```
+conda deactivate
+conda activate qiime2-amplicon-2025.10
+qiime info
+```
+
+### Docker
 
 ## Data
 To download the data, visit: https://qiita.ucsd.edu/analysis/description/25761/ (you will need a Qiita account)
@@ -34,6 +68,9 @@ qiita_artifacts/
     metadata.txt
 artifacts/
 figs/  
+qiime2-environment-macos.yml
+qiime2-environment-windows.yml
+README.md
 ```
 
 `src/analysis.py` is the code script, `src/notebook.ipynb` contains the code in a notebook, `artifacts/` will contain created artifacts, and `figs/` will contain the visualizations of results of the analysis.
@@ -55,16 +92,32 @@ figs/
 5. Power analysis
     - Alpha diversity: two-sample t-test power for a range of effect sizes and total sample sizes
     - Beta diversity: uses within-group UniFrac distances to derive an effect size and computes power over varying sample sizes and significance levels
-6. Output
-    - Prints mean and standard deviation for alpha and beta diversity in both groups
-    - Saves:
-        - figs/figure1.pdf – alpha-diversity power curves
-        - figs/figure2.pdf – beta-diversity power curves and distance distributions
+6. PCoA Visualization
+    - Performs Principal Coordinates Analysis (PCoA) on the unweighted UniFrac distance matrix
+    - Generates an interactive plot 
+7. Random Forest Classification
+    - Trains a random forest classifier on a range of total sample sizes
+    - Evaluates performance via test-set ROC AUC and aggregates mean and standard deviation over multiple repetitions
+    - Plots mean AUC vs. total sample size
+8. Feature Importance Analysis
+    - Trains a final RandomForestClassifier on the full training set.
+    - Extracts Gini feature importances, sorted from most important to least important
+    - Computes permutation importance on the test set using ROC AUC as the scoring metric
+        - Estimates the drop in AUC when each feature is permuted.
+9. Output
+    - figs/figure1.pdf – alpha-diversity power curves
+    - figs/figure2.pdf – beta-diversity power curves and distance distributions
+    - figs/diversity_summary_stats.csv - summary statistics of alpha and beta diversities
+    - figs/figure3.html - interactive PCoA plot
+    - figs/figure4.pdf - mean AUC over different sample sizes
+    - figs/rf_feature_importances.csv - extracted Gini feature importances
+    - figs/rf_feature_importances_permutation.csv - permutation-based importance results
 
 ## Running the Code
 Activate the QIIME 2 Python environment, then from the project directory:
 
 ```
+conda activate qiime2-amplicon-2025.7 #if not already activated
 python src/analysis.py
 ```
 

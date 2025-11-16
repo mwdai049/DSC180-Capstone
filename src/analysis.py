@@ -1,9 +1,10 @@
 import pandas as pd
-import qiime2 as q2
 import seaborn as sns
 import matplotlib.pyplot as plt
 import re
+import numpy as np
 
+import qiime2 as q2
 from statsmodels.stats.power import tt_ind_solve_power
 from statistics import mean, stdev
 from skbio import DistanceMatrix
@@ -17,11 +18,17 @@ from skbio.diversity.alpha import faith_pd
 import plotly.express as px
 from qiime2 import Artifact, Metadata
 import skbio
+
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import roc_auc_score
+from sklearn.model_selection import train_test_split
+from sklearn.inspection import permutation_importance
+
 import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
 # Load the feature table and insertion tree. Both are QIIME2 artifacts.
-ft = Artifact.load('qiita_artifacts/feature_table.qza')
+ft = Artifact.load('qiita_artifacts/feature-table.qza')
 
 # Import the relabelled Newick tree as a rooted QIIME 2 phylogeny artifact and save it as insertion_tree.qza
 nwk = NewickFormat('qiita_artifacts/insertion_tree.relabelled.tre', mode='r')
@@ -55,16 +62,16 @@ unifrac_df = pd.DataFrame(unifrac_dm.data, index=unifrac_dm.ids, columns=unifrac
 unifrac_res.distance_matrix.save('artifacts/distance_matrix.qza')
 
 # Load sample metadata and merge with alpha diversity results. Subset data based on Crohn's disease behavior.
-metadata = pd.read_csv('qiita_artifacts/metadata.txt', sep='\\t', dtype=str, index_col=0, engine='python')
+metadata_df = pd.read_csv('qiita_artifacts/metadata.txt', sep='\t', dtype=str, index_col=0, engine='python')
 
 # Ensure that the index of the metadata matches the sample IDs in the diversity results
-metadata['deblur alpha diversity'] = faith_pd
-metadata.dropna(subset=['deblur alpha diversity'], inplace=True)
+metadata_df['deblur alpha diversity'] = faith_pd
+metadata_df.dropna(subset=['deblur alpha diversity'], inplace=True)
 
 # Subset metadata for Crohn's disease behavior groups
-b1 = metadata[metadata['cd_behavior'] == 'Non-stricturing, non-penetrating (B1)']
-bother = metadata[(metadata['cd_behavior'] != 'Non-stricturing, non-penetrating (B1)') & 
-                  (metadata['cd_behavior'] != 'not applicable')]
+b1 = metadata_df[metadata_df['cd_behavior'] == 'Non-stricturing, non-penetrating (B1)']
+bother = metadata_df[(metadata_df['cd_behavior'] != 'Non-stricturing, non-penetrating (B1)') & 
+                  (metadata_df['cd_behavior'] != 'not applicable')]
 
 b1_dtx = unifrac_dm.filter(ids=b1.index).to_series().values
 bother_dtx = unifrac_dm.filter(ids=bother.index).to_series().values
@@ -107,17 +114,28 @@ for observations in range(10, 155, 5):
                 difference, effect_size)})
 data_beta = pd.DataFrame(data_beta) 
 
-print ('Alpha diversity:')
-print('B1 Mean Alpha Diversity: ', b1['deblur alpha diversity'].mean())
-print('B Other Mean Alpha Diversity: ', bother['deblur alpha diversity'].mean())
-print('B1 STD: ', b1['deblur alpha diversity'].std())
-print('B Other STD: ', bother['deblur alpha diversity'].std())
+alpha_b1_mean = b1['deblur alpha diversity'].mean()
+alpha_bother_mean = bother['deblur alpha diversity'].mean()
+alpha_b1_std = b1['deblur alpha diversity'].std()
+alpha_bother_std = bother['deblur alpha diversity'].std()
 
-print ('Beta diversity:')
-print('B1 Mean Beta Diversity: ', mean(b1_dtx))
-print('B Other Mean Beta Diversity: ', mean(bother_dtx))
-print('B1 STD: ', stdev(b1_dtx))
-print('B Other STD: ', stdev(bother_dtx))
+beta_b1_mean = mean(b1_dtx)
+beta_bother_mean = mean(bother_dtx)
+beta_b1_std = stdev(b1_dtx)
+beta_bother_std = stdev(bother_dtx)
+
+summary_rows = [
+    {"metric": "alpha", "group": "B1",      "mean": alpha_b1_mean,     "std": alpha_b1_std},
+    {"metric": "alpha", "group": "B-other", "mean": alpha_bother_mean, "std": alpha_bother_std},
+    {"metric": "beta",  "group": "B1",      "mean": beta_b1_mean,      "std": beta_b1_std},
+    {"metric": "beta",  "group": "B-other", "mean": beta_bother_mean,  "std": beta_bother_std},
+]
+
+summary_df = pd.DataFrame(summary_rows)
+summary_df_rounded = summary_df.copy()
+summary_df_rounded["mean"] = summary_df_rounded["mean"].round(3)
+summary_df_rounded["std"] = summary_df_rounded["std"].round(3)
+summary_df_rounded.to_csv("figs/diversity_summary_stats.csv", index=False)
 
 # Plotting the alpha diversity power analysis results
 fig, ax1 = plt.subplots(figsize=(15, 9))
@@ -177,29 +195,44 @@ plt.show()
 fig.savefig('figs/figure2.pdf')
 
 # Perform PCoA on the unweighted UniFrac distance matrix and visualize with Emperor
-pcoa = diversity.methods.pcoa(distance_matrix=unifrac_dm)
-viz = emperor.visualizers.plot(pcoa=pcoa.pcoa, metadata=metadata)
-viz.visualization.save('unweighted-unifrac-pcoa.qza')
+pcoa_res = diversity.methods.pcoa(distance_matrix=unifrac_res.distance_matrix)
+metadata = Metadata.load('qiita_artifacts/metadata.txt')
+viz = emperor.visualizers.plot(
+    pcoa=pcoa_res.pcoa,
+    metadata=metadata
+)
 
-pcoa_art = Artifact.load('unweighted-unifrac-pcoa.qza')
-
-ordination: skbio.OrdinationResults = pcoa_art.view(skbio.OrdinationResults)
+ordination: skbio.OrdinationResults = pcoa_res.pcoa.view(skbio.OrdinationResults)
 coords = ordination.samples.copy()
 coords.index.name = 'SampleID'
 
-meta_df = metadata.to_dataframe()
-df = coords.join(meta_df, how='inner')
+df = coords.join(metadata_df, how='inner')
 
-x_lab = f"PC1 ({ordination.proportion_explained['PC1'] * 100:.1f}% var)"
-y_lab = f"PC2 ({ordination.proportion_explained['PC2'] * 100:.1f}% var)"
+df = df[df['cd_behavior'] != 'not applicable'].copy()
+
+df['behavior_group'] = df['cd_behavior'].apply(
+    lambda x: 'B1' if x == 'Non-stricturing, non-penetrating (B1)' else 'B-other'
+)
+df['behavior_group'] = pd.Categorical(df['behavior_group'],
+                                      categories=['B1', 'B-other'],
+                                      ordered=True)
+
+pc1_col = coords.columns[0]
+pc2_col = coords.columns[1]
+
+pc1_var = ordination.proportion_explained.iloc[0] * 100
+pc2_var = ordination.proportion_explained.iloc[1] * 100
+
+x_lab = f"{pc1_col} ({pc1_var:.1f}% var)"
+y_lab = f"{pc2_col} ({pc2_var:.1f}% var)"
 
 fig = px.scatter(
     df,
-    x='PC1',
-    y='PC2',
-    color='cd_behavior',       
-    hover_name=df.index,         
-    hover_data=df.columns,       
+    x=pc1_col,
+    y=pc2_col,
+    color='behavior_group',   
+    hover_name=df.index,
+    hover_data=df.columns,
     title="Unweighted UniFrac PCoA"
 )
 
@@ -208,4 +241,164 @@ fig.update_layout(
     yaxis_title=y_lab
 )
 
-fig.savefig('figs/figure3.html')
+fig.write_html('figs/figure3.html')
+
+#Random Forest Classification
+meta_rf = metadata_df.copy()
+meta_rf = meta_rf[meta_rf['cd_behavior'] != 'not applicable'].copy()
+meta_rf['behavior_group'] = np.where(
+    meta_rf['cd_behavior'] == 'Non-stricturing, non-penetrating (B1)',
+    'B1',
+    'B-other'
+)
+
+rarefied_df = rarefied.view(pd.DataFrame)
+common_ids = rarefied_df.index.intersection(meta_rf.index)
+
+X_full = rarefied_df.loc[common_ids]
+y_full = meta_rf.loc[common_ids, 'behavior_group']
+
+X_train, X_test, y_train, y_test = train_test_split(
+    X_full,
+    y_full,
+    test_size=0.3,
+    stratify=y_full,
+    random_state=42,
+)
+
+def rf_learning_curve(X_train,y_train,X_test,y_test,sample_sizes,n_reps=10,random_state=42):
+    rng = np.random.default_rng(random_state)
+
+    Xtr = X_train.values
+    ytr = y_train.values
+    Xte = X_test.values
+    yte = y_test.values
+
+    classes = np.unique(ytr)
+    if len(classes) != 2:
+        raise ValueError(f"Expected 2 classes, got {classes}")
+
+    class_to_idx = {c: np.where(ytr == c)[0] for c in classes}
+    min_class_size = min(len(idx) for idx in class_to_idx.values())
+    max_balanced_N = 2 * min_class_size
+
+    sample_sizes = [N for N in sample_sizes if N <= max_balanced_N]
+
+    results = []
+
+    yte_bin = (yte == classes[1]).astype(int)
+
+    for N in sample_sizes:
+        n_per_class = N // 2
+        aucs = []
+
+        for rep in range(n_reps):
+            chosen_idxs = []
+
+            for c in classes:
+                idxs = class_to_idx[c]
+                chosen = rng.choice(idxs, size=n_per_class, replace=False)
+                chosen_idxs.append(chosen)
+
+            chosen_idxs = np.concatenate(chosen_idxs)
+
+            X_sub = Xtr[chosen_idxs]
+            y_sub = ytr[chosen_idxs]
+
+            clf = RandomForestClassifier(
+                n_estimators=500,
+                max_depth=None,
+                class_weight="balanced",
+                n_jobs=-1,
+                random_state=random_state + rep,
+            )
+            clf.fit(X_sub, y_sub)
+
+            y_prob = clf.predict_proba(Xte)[:, 1]
+            auc = roc_auc_score(yte_bin, y_prob)
+            aucs.append(auc)
+
+        results.append(
+            {
+                "N_total": N,
+                "mean_auc": np.mean(aucs),
+                "std_auc": np.std(aucs),
+                "n_reps": len(aucs),
+            }
+        )
+
+    return pd.DataFrame(results)
+
+sample_sizes = list(range(40, X_train.shape[0] * 2, 20))
+
+rf_results = rf_learning_curve(
+    X_train,
+    y_train,
+    X_test,
+    y_test,
+    sample_sizes,
+    n_reps=10,
+)
+
+print(rf_results)
+
+plt.figure(figsize=(8, 6))
+sns.lineplot(x="N_total", y="mean_auc", data=rf_results, marker="o")
+plt.fill_between(
+    rf_results["N_total"],
+    rf_results["mean_auc"] - rf_results["std_auc"],
+    rf_results["mean_auc"] + rf_results["std_auc"],
+    alpha=0.2,
+)
+plt.axhline(0.5, color="gray", linestyle="--", label="Chance (AUC=0.5)")
+plt.xlabel("Total sample size (B1 + B-other)")
+plt.ylabel("Test-set ROC AUC")
+plt.title("Random Forest learning curve: B1 vs B-other")
+plt.legend()
+plt.tight_layout()
+plt.savefig("figs/figure4.pdf")
+plt.show()
+
+#Which features are most important in classification?
+rf_final = RandomForestClassifier(
+    n_estimators=500,
+    max_depth=None,
+    class_weight='balanced',
+    n_jobs=-1,
+    random_state=42,
+)
+rf_final.fit(X_train, y_train)
+
+importances = rf_final.feature_importances_
+
+feat_names = X_train.columns 
+imp_df = pd.DataFrame({
+    'feature': feat_names,
+    'gini_importance': importances
+})
+
+imp_df = imp_df.sort_values('gini_importance', ascending=False)
+imp_df.to_csv('figs/rf_feature_importances.csv', index=False)
+
+#Permutation importance
+y_prob = rf_final.predict_proba(X_test)[:, 1]
+baseline_auc = roc_auc_score((y_test == rf_final.classes_[1]).astype(int), y_prob)
+
+perm = permutation_importance(
+    rf_final,
+    X_test,
+    y_test,
+    n_repeats=20,
+    random_state=42,
+    n_jobs=-1,
+    scoring='roc_auc',
+)
+
+perm_importances = perm.importances_mean  
+perm_df = pd.DataFrame({
+    'feature': X_test.columns,
+    'perm_importance_auc_drop': perm_importances
+})
+
+perm_df = perm_df.sort_values('perm_importance_auc_drop', ascending=False)
+perm_df.to_csv('figs/rf_feature_importances_permutation.csv', index=False)
