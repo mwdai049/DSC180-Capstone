@@ -64,14 +64,14 @@ qiita_artifacts/
     feature-table.qza
     insertion_tree.relabelled.tre
     metadata.txt
-artifacts/
+out/
 figs/  
 qiime2-environment-macos.yml
 qiime2-environment-windows.yml
 README.md
 ```
 
-`src/analysis.py` is the code script, `src/notebook.ipynb` contains the code in a notebook, `artifacts/` will contain created artifacts, and `figs/` will contain the visualizations of results of the analysis.
+`src/analysis.py` is the code script, `src/notebook.ipynb` contains the code in a notebook, `out/` will contain created outputs, and `figs/` will contain the visualizations of results of the analysis.
 
 ## What the Script Does
 1. Load the QIIME2 Artifacts
@@ -121,3 +121,39 @@ python src/analysis.py
 ```
 
 Running this code will run the analysis and generate the resulting figures for visualization. After it finishes, check the figs/ directory for the generated figures.
+
+## Running the Code Through Notebook
+After selecting the QIIME 2 environment, you may need to edit the env's `kernel.json` file if the Setup cell does not resolve import issues related to `rpy2`.
+
+In a terminal, activate the environment and run the following commands to retrieve relevant paths:
+
+```
+R_HOME=$(R RHOME)
+echo "R_HOME=$R_HOME"
+```
+
+```
+ENV_BIN=$(dirname "$(which R)")
+echo "ENV_BIN=$ENV_BIN"
+```
+
+```
+LD_LIB="$R_HOME/lib"
+echo "LD_LIBRARY_PATH=$LD_LIB"
+```
+
+Then find the path to the environment's `kernel.json` using the terminal command `jupyter kernelspec list`, and add the following:
+
+```
+{
+ ...
+ ...,
+ "env": {
+  "R_HOME": "[REPLACE WITH R_HOME]",
+  "PATH": "[REPLACE WITH ENV_BIN]",
+  "LD_LIBRARY_PATH": "[REPLACE WITH LD_LIB]" 
+ }
+}
+```
+
+Then restart the notebook and you should no longer run into `rpy2` import issues.

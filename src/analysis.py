@@ -35,9 +35,9 @@ ft = Artifact.load('qiita_artifacts/feature-table.qza')
 # Import the relabelled Newick tree as a rooted QIIME 2 phylogeny artifact and save it as insertion_tree.qza
 nwk = NewickFormat('qiita_artifacts/insertion_tree.relabelled.tre', mode='r')
 tree_qza = Artifact.import_data('Phylogeny[Rooted]', nwk)
-tree_qza.save('artifacts/insertion_tree.qza')
+tree_qza.save('out/insertion_tree.qza')
 
-insertion_tree = q2.Artifact.load('artifacts/insertion_tree.qza')
+insertion_tree = q2.Artifact.load('out/insertion_tree.qza')
 
 # Rarefaction (a kind of random subsampling) on the feature table of counts. 
 # We sample down to 10,000 reads per sample to make them comparable, and storing that new standardized table as rarefied
@@ -51,7 +51,7 @@ faith_res = diversity.actions.alpha_phylogenetic(
 )
 
 faith_pd = faith_res.alpha_diversity.view(pd.Series)
-faith_res.alpha_diversity.save('artifacts/alpha_diversity.qza')
+faith_res.alpha_diversity.save('out/alpha_diversity.qza')
 
 # Compute unweighted UniFrac distance matrix (beta diversity)
 unifrac_res = diversity.actions.beta_phylogenetic(
@@ -61,7 +61,7 @@ unifrac_res = diversity.actions.beta_phylogenetic(
 )
 unifrac_dm = unifrac_res.distance_matrix.view(DistanceMatrix)
 unifrac_df = pd.DataFrame(unifrac_dm.data, index=unifrac_dm.ids, columns=unifrac_dm.ids)
-unifrac_res.distance_matrix.save('artifacts/distance_matrix.qza')
+unifrac_res.distance_matrix.save('out/distance_matrix.qza')
 
 # Load sample metadata and merge with alpha diversity results. Subset data based on Crohn's disease behavior.
 metadata_df = pd.read_csv('qiita_artifacts/metadata.txt', sep='\t', dtype=str, index_col=0, engine='python')
@@ -388,12 +388,6 @@ imp_df.to_csv('figs/rf_feature_importances.csv', index=False)
 #shap visualizations
 explainer = shap.TreeExplainer(rf_final)
 shap_values = explainer.shap_values(X_test)
-
-shap.summary_plot(shap_values[:,:,0], X_test)
-fig = plt.gcf()
-plt.title("Feature Impact on Random Forest Predictions for Class 0 (B-Other)")
-fig.savefig("figs/shap_class_0.pdf", bbox_inches="tight", dpi=300)
-plt.close(fig)
 
 shap.summary_plot(shap_values[:,:,1], X_test)
 fig = plt.gcf()
