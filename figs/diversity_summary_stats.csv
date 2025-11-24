@@ -1,0 +1,5 @@
+metric,group,mean,std
+alpha,B1,13.478,3.497
+alpha,B-other,9.776,3.908
+beta,B1,0.561,0.085
+beta,B-other,0.607,0.093
