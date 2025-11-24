@@ -41,8 +41,6 @@ conda activate qiime2-amplicon-2025.10
 qiime info
 ```
 
-### Docker
-
 ## Data
 To download the data, visit: https://qiita.ucsd.edu/analysis/description/25761/ (you will need a Qiita account)
 
