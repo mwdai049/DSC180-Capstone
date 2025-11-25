@@ -71,7 +71,7 @@ qiime2-environment-windows.yml
 README.md
 ```
 
-`src/analysis.py` is the code script, `src/notebook.ipynb` contains the code in a notebook, `out/` will contain created outputs, and `figs/` will contain the visualizations of results of the analysis.
+`src/analysis.py` is the code script, `src/notebook.ipynb` contains the code in a notebook, `out/` will contain created intermediate outputs, and `figs/` will contain the visualizations of results of the analysis.
 
 ## What the Script Does
 1. Load the QIIME2 Artifacts
