@@ -30,14 +30,14 @@ import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
 # Load the feature table and insertion tree. Both are QIIME2 artifacts.
-ft = Artifact.load('qiita_artifacts/feature-table.qza')
+ft = Artifact.load('../qiita_artifacts/feature_table.qza')
 
 # Import the relabelled Newick tree as a rooted QIIME 2 phylogeny artifact and save it as insertion_tree.qza
-nwk = NewickFormat('qiita_artifacts/insertion_tree.relabelled.tre', mode='r')
+nwk = NewickFormat('../qiita_artifacts/insertion_tree.relabelled.tre', mode='r')
 tree_qza = Artifact.import_data('Phylogeny[Rooted]', nwk)
-tree_qza.save('out/insertion_tree.qza')
+tree_qza.save('../out/insertion_tree.qza')
 
-insertion_tree = q2.Artifact.load('out/insertion_tree.qza')
+insertion_tree = q2.Artifact.load('../out/insertion_tree.qza')
 
 # Rarefaction (a kind of random subsampling) on the feature table of counts. 
 # We sample down to 10,000 reads per sample to make them comparable, and storing that new standardized table as rarefied
@@ -51,7 +51,7 @@ faith_res = diversity.actions.alpha_phylogenetic(
 )
 
 faith_pd = faith_res.alpha_diversity.view(pd.Series)
-faith_res.alpha_diversity.save('out/alpha_diversity.qza')
+faith_res.alpha_diversity.save('../out/alpha_diversity.qza')
 
 # Compute unweighted UniFrac distance matrix (beta diversity)
 unifrac_res = diversity.actions.beta_phylogenetic(
@@ -61,14 +61,15 @@ unifrac_res = diversity.actions.beta_phylogenetic(
 )
 unifrac_dm = unifrac_res.distance_matrix.view(DistanceMatrix)
 unifrac_df = pd.DataFrame(unifrac_dm.data, index=unifrac_dm.ids, columns=unifrac_dm.ids)
-unifrac_res.distance_matrix.save('out/distance_matrix.qza')
+unifrac_res.distance_matrix.save('../out/distance_matrix.qza')
 
 # Load sample metadata and merge with alpha diversity results. Subset data based on Crohn's disease behavior.
-metadata_df = pd.read_csv('qiita_artifacts/metadata.txt', sep='\t', dtype=str, index_col=0, engine='python')
+metadata_df = pd.read_csv('../qiita_artifacts/metadata.txt', sep='\t', dtype=str, index_col=0, engine='python')
 
 # Ensure that the index of the metadata matches the sample IDs in the diversity results
 metadata_df['deblur alpha diversity'] = faith_pd
 metadata_df.dropna(subset=['deblur alpha diversity'], inplace=True)
+metadata_df = metadata_df.loc[unifrac_df.index]
 
 # Subset metadata for Crohn's disease behavior groups
 b1 = metadata_df[metadata_df['cd_behavior'] == 'Non-stricturing, non-penetrating (B1)']
@@ -137,7 +138,7 @@ summary_df = pd.DataFrame(summary_rows)
 summary_df_rounded = summary_df.copy()
 summary_df_rounded["mean"] = summary_df_rounded["mean"].round(3)
 summary_df_rounded["std"] = summary_df_rounded["std"].round(3)
-summary_df_rounded.to_csv("figs/diversity_summary_stats.csv", index=False)
+summary_df_rounded.to_csv("../out/diversity_summary_stats.csv", index=False)
 
 # Plotting the alpha diversity power analysis results
 fig, ax1 = plt.subplots(figsize=(15, 9))
@@ -153,7 +154,7 @@ ax1.xaxis.set_major_locator(plt.MultipleLocator(20))
 
 plt.axhline(0.8, 0, data_alpha['Total sample size (N)'].max())
 plt.show()
-fig.savefig('figs/figure1.pdf')
+fig.savefig('../out/figs/figure1_power_vs_sample_size_alpha.pdf')
 plt.close(fig)
 
 # Plotting beta diversity power analysis and distributions
@@ -195,12 +196,12 @@ ax2.axvline(mean(bother_dtx), 0, 6, color="skyblue")
 ax2.xaxis.set_major_locator(plt.MultipleLocator(.1))
 ax2.legend()
 plt.show()
-fig.savefig('figs/figure2.pdf')
+fig.savefig('../out/figs/figure2_power_vs_sample_size_beta.pdf')
 plt.close(fig)
 
 # Perform PCoA on the unweighted UniFrac distance matrix and visualize with Emperor
 pcoa_res = diversity.methods.pcoa(distance_matrix=unifrac_res.distance_matrix)
-metadata = Metadata.load('qiita_artifacts/metadata.txt')
+metadata = Metadata.load('../qiita_artifacts/metadata.txt')
 viz = emperor.visualizers.plot(
     pcoa=pcoa_res.pcoa,
     metadata=metadata
@@ -245,7 +246,7 @@ fig.update_layout(
     yaxis_title=y_lab
 )
 
-fig.write_html('figs/figure3.html')
+fig.write_html('../out/figs/figure3_unifrac_pcoa.html')
 
 #Random Forest Classification
 meta_rf = metadata_df.copy()
@@ -344,7 +345,7 @@ rf_results = rf_learning_curve(
     n_reps=10,
 )
 
-rf_results.to_csv("figs/random_forest_results.csv", index=False)
+rf_results.to_csv("../out/random_forest_results.csv", index=False)
 
 plt.figure(figsize=(8, 6))
 sns.lineplot(x="N_total", y="mean_auc", data=rf_results, marker="o")
@@ -360,7 +361,7 @@ plt.ylabel("Test-set ROC AUC")
 plt.title("Random Forest learning curve: B1 vs B-other")
 plt.legend()
 plt.tight_layout()
-plt.savefig("figs/figure4.pdf")
+plt.savefig("../out/figs/figure4_random_forest_learning_curve.pdf")
 plt.show()
 plt.close()
 
@@ -383,7 +384,7 @@ imp_df = pd.DataFrame({
 })
 
 imp_df = imp_df.sort_values('gini_importance', ascending=False)
-imp_df.to_csv('figs/rf_feature_importances.csv', index=False)
+imp_df.to_csv('../out/rf_feature_importances.csv', index=False)
 
 #shap visualizations
 explainer = shap.TreeExplainer(rf_final)
@@ -392,5 +393,6 @@ shap_values = explainer.shap_values(X_test)
 shap.summary_plot(shap_values[:,:,1], X_test)
 fig = plt.gcf()
 plt.title("Feature Impact on Random Forest Predictions for Class 1 (B1)")
-fig.savefig("figs/shap_class_1.pdf", bbox_inches="tight", dpi=300)
+fig.savefig("../out/figs/figure5_shap_summary.pdf", bbox_inches="tight", dpi=300)
 plt.close(fig)
+
