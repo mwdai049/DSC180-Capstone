@@ -2,6 +2,9 @@
 
 ## Microbiome Diversity & Power Analysis
 
+## Credit
+Monica Dai and Katelyn Zhao worked on the code replication part of the study, as seen in Github. Camille Sicat helped with the Github repository formatting and project logistics. Camille Sicat, Nathan Wang, and Sophie Wang wrote the report. 
+
 ## Setup
 ### QIIME 2
 To upload and process the data, you must install QIIME 2. The yml files are in the project directory.
