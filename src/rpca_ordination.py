@@ -2,17 +2,10 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from skbio import DistanceMatrix
-from skbio.stats.distance import permanova
 from biom import load_table
-from biom.table import Table
 import seaborn as sns
 
 from gemelli.rpca import rpca
-from scipy.spatial import procrustes
-from skbio.stats.distance import mantel
-
-from adjustText import adjust_text
 
 table = load_table('../out/rarefied_table.biom')
 metadata = pd.read_csv('../qiita_artifacts/metadata.txt', sep='\t')
@@ -30,7 +23,6 @@ def run_rpca(table, metadata, target_column):
 
     df = samples_df.copy()
 
-    # Add cohort information to the samples dataframe
     df[target_column] = pd.Series(target_data)
 
     # Extract variance explained
@@ -62,7 +54,7 @@ target_column = 'cd_phenotype'
 ordination, distance, df, variance_explained = run_rpca(table, metadata, target_column)
 
 
-# Create the RPCA plot with PERMANOVA results annotation
+# Create the RPCA plot
 sns.scatterplot(
     data=df,
     x='PC1', 
