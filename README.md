@@ -78,9 +78,10 @@ qiita_artifacts/
     insertion_tree.relabelled.tre
     metadata.txt
 out/
-figs/  
+    figs/  
 qiime2-environment-macos.yml
 qiime2-environment-windows.yml
+gemelli-env.yml
 README.md
 ```
 
