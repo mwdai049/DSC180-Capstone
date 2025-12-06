@@ -180,7 +180,7 @@ Then restart the notebook and you should no longer run into `rpy2` import issues
 
 ## Running RPCA Code
 
-To run RPCA analysis, you will need to first convert `rarefied_table.qza` into BIOMV210 format. To do so, activate your QIIME 2 and run the following command:
+To run RPCA analysis, you will need to first convert `rarefied_table.qza` into BIOMV210 format. To do so, activate your QIIME 2 environment and run the following command:
 
 ```
 qiime tools export --input-path out/rarefied_table.qza --output-path out/
